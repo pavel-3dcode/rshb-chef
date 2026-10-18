@@ -170,8 +170,11 @@ def test_seed_on_clean_database(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    runpy.run_path(str(seed_path))
-    runpy.run_path(str(seed_path))
+    seed_module = runpy.run_path(str(seed_path))
+    seed_demo = seed_module["seed_demo"]
+
+    seed_demo(db_path)
+    seed_demo(db_path)
 
     connection = get_connection(db_path)
 
@@ -238,3 +241,21 @@ def test_weight_range(db, column, weight, should_pass):
     else:
         with pytest.raises(sqlite3.IntegrityError):
             db.execute(sql, (1, weight))
+
+def test_fractional_price_rejected(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute(
+            """
+            INSERT INTO dishes (
+                restaurant_id, name, category, price_kopeck
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (1, "Fractional Price", "main", 12.5)
+        )
+
+    count = db.execute(
+        "SELECT COUNT(*) FROM dishes"
+    ).fetchone()[0]
+
+    assert count == 0

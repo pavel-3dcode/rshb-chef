@@ -9,7 +9,7 @@ CREATE TABLE dishes (
     restaurant_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     category TEXT NOT NULL,
-    price_kopeck INTEGER NOT NULL CHECK (price_kopeck >= 0),
+    price_kopeck INTEGER NOT NULL CHECK (typeof(price_kopeck) = 'integer' AND price_kopeck >= 0),
     available INTEGER NOT NULL DEFAULT 1 CHECK (available IN (0, 1)),
     is_alcohol INTEGER NOT NULL DEFAULT 0 CHECK (is_alcohol IN (0, 1)),
     ingredients_verified INTEGER NOT NULL DEFAULT 0 CHECK (ingredients_verified IN (0, 1)),
