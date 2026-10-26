@@ -110,3 +110,95 @@ def calculate_remaining_budget(menu: MenuSnapshot, guest: GuestContext) -> int |
             return None
 
     return guest.budget_kopeck - cart_total
+
+
+def score_candidate(
+    dish: Dish,
+    menu: MenuSnapshot,
+    guest: GuestContext,
+) -> float:
+    pairing_match = 0
+
+    if guest.stage == "after_main":
+        for cart_id in guest.cart_dish_ids:
+            if (cart_id, dish.id) in menu.pairings:
+                pairing_match = 1
+                break
+
+    preference_match = int(bool(guest.preferences & dish.tags))
+
+    category_match = int(dish.category in stage_categories[guest.stage])
+
+    score = (
+        menu.pairing_weight * pairing_match +
+        menu.preference_weight * preference_match +
+        menu.category_weight * category_match
+    )
+
+    return score
+
+def build_reasons(
+    dish: Dish,
+    menu: MenuSnapshot,
+    guest: GuestContext,
+) -> list[str]:
+    reasons = []
+
+    if guest.stage == "after_main":
+        if any(
+            (cart_id, dish.id) in menu.pairings
+            for cart_id in guest.cart_dish_ids
+        ):
+            reasons.append("Сочетается с выбранным блюдом")
+
+    matching_preferences = sorted(guest.preferences & dish.tags)
+
+    if matching_preferences:
+        reasons.append(
+            "Соответствует предпочтениям: "
+            + ", ".join(matching_preferences)
+        )
+
+    reasons.append("Подходит для текущего этапа заказа")
+
+    remaining_budget = calculate_remaining_budget(menu, guest)
+
+    if remaining_budget is not None:
+        reasons.append("Укладывается в оставшийся бюджет")
+
+    return reasons
+
+
+def recommend(
+    menu: MenuSnapshot,
+    guest: GuestContext,
+) -> list[Recommendation]:
+    if menu.restaurant_id != guest.restaurant_id:
+        raise ValueError("Not the right restaurant")
+
+    if not menu.enabled:
+        return []
+
+    candidates = filter_candidates(menu, guest)
+    recommendations = []
+
+    for dish in candidates:
+        recommendations.append(
+            Recommendation(
+                dish_id = dish.id,
+                name = dish.name,
+                price_kopeck = dish.price_kopeck,
+                score = score_candidate(dish, menu, guest),
+                reasons = build_reasons(dish, menu, guest),
+            )
+        )
+
+    recommendations.sort(
+        key=lambda item: (
+            -item.score,
+            item.price_kopeck,
+            item.dish_id,
+        )
+    )
+
+    return recommendations[:3]

@@ -1,5 +1,5 @@
 import pytest
-from app.recommendations import Dish, GuestContext, MenuSnapshot, filter_candidates, calculate_remaining_budget
+from app.recommendations import Dish, GuestContext, MenuSnapshot, filter_candidates, calculate_remaining_budget, score_candidate, recommend
 
 @pytest.mark.parametrize("salad_price, expected_count", [
     (28000, 1),
@@ -505,3 +505,179 @@ def test_exhausted_budget(budget, price, expected_count):
     result = filter_candidates(menu, guest)
 
     assert len(result) == expected_count
+
+def test_score_candidate_all_matches():
+    dish = Dish(
+        id = 2,
+        restaurant_id = 1,
+        name = "Salad",
+        category = "salad",
+        price_kopeck = 28000,
+        available = True,
+        is_alcohol = False,
+        ingredients_verified = True,
+        allergens_verified = True,
+        tags = {"fresh"}
+    )
+
+    menu = MenuSnapshot(
+        restaurant_id = 1,
+        version = "1.0",
+        dishes = [dish],
+        pairings = {(1, 2): 5}
+    )
+
+    guest = GuestContext(
+        restaurant_id = 1,
+        stage = "after_main",
+        cart_dish_ids = [1],
+        preferences = {"fresh"}
+    )
+
+    assert score_candidate(dish, menu, guest) == 6
+
+@pytest.mark.parametrize(
+    "pairing_weight, preference_weight, category_weight, expected",
+    [
+        (3, 2, 1, 6),
+        (5, 0, 2, 7),
+        (0, 0, 0, 0),
+    ],
+)
+def test_score_uses_restaurant_weights(
+    pairing_weight,
+    preference_weight,
+    category_weight,
+    expected,
+):
+    dish = Dish(
+        id = 2,
+        restaurant_id = 1,
+        name = "Салат",
+        category = "salad",
+        price_kopeck = 28000,
+        available = True,
+        is_alcohol = False,
+        ingredients_verified = True,
+        allergens_verified = True,
+        tags = {"fresh"},
+    )
+
+    menu = MenuSnapshot(
+        restaurant_id = 1,
+        version = "1.0",
+        dishes = [dish],
+        pairings = {(1, 2): 5},
+        pairing_weight = pairing_weight,
+        preference_weight = preference_weight,
+        category_weight = category_weight,
+    )
+
+    guest = GuestContext(
+        restaurant_id = 1,
+        stage = "after_main",
+        cart_dish_ids = [1],
+        preferences = {"fresh"},
+    )
+
+    assert score_candidate(dish, menu, guest) == expected
+
+def test_recommend_sorts_and_limits():
+    dishes = [
+        Dish(
+            id = i,
+            restaurant_id = 1,
+            name = f"Салат {i}",
+            category = "salad",
+            price_kopeck = price,
+            available = True,
+            is_alcohol = False,
+            ingredients_verified = True,
+            allergens_verified = True,
+            tags = tags,
+        )
+        for i, price, tags in [
+            (1, 40000, set()),
+            (2, 30000, {"fresh"}),
+            (3, 20000, {"fresh"}),
+            (4, 10000, set()),
+        ]
+    ]
+
+    menu = MenuSnapshot(
+        restaurant_id = 1,
+        version = "1.0",
+        dishes = dishes,
+    )
+
+    guest = GuestContext(
+        restaurant_id = 1,
+        stage = "before_order",
+        preferences = {"fresh"},
+    )
+
+    result = recommend(menu, guest)
+
+    assert [item.dish_id for item in result] == [3, 2, 4]
+    assert [item.score for item in result] == [3, 3, 1]
+    assert all(item.reasons for item in result)
+
+def test_recommend_respects_hard_constraints():
+    dishes = [
+        Dish(
+            id = 1,
+            restaurant_id = 1,
+            name = "Салат с молоком",
+            category = "salad",
+            price_kopeck = 20000,
+            available = True,
+            is_alcohol = False,
+            ingredients_verified = True,
+            allergens_verified = True,
+            allergens = {"milk"},
+            tags = {"fresh"},
+        ),
+        Dish(
+            id = 2,
+            restaurant_id = 1,
+            name = "Овощной салат",
+            category = "salad",
+            price_kopeck = 18000,
+            available = True,
+            is_alcohol = False,
+            ingredients_verified = True,
+            allergens_verified = True,
+            tags = {"fresh"},
+        ),
+    ]
+
+    menu = MenuSnapshot(
+        restaurant_id = 1,
+        version = "1.0",
+        dishes = dishes,
+        preference_weight = 5,
+    )
+
+    guest = GuestContext(
+        restaurant_id = 1,
+        stage = "before_order",
+        allergies = {"milk"},
+        preferences = {"fresh"},
+    )
+
+    result = recommend(menu, guest)
+
+    assert [item.dish_id for item in result] == [2]
+
+    menu.enabled = False
+    assert recommend(menu, guest) == []
+
+    menu.enabled = True
+    guest.recommendations_enabled = False
+    assert recommend(menu, guest) == []
+
+    guest.recommendations_enabled = True
+    guest.restaurant_id = 2
+
+    with pytest.raises(ValueError, match = "Not the right restaurant"):
+        recommend(menu, guest)
