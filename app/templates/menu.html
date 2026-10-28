@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Своё Шеф — Меню</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    </head>
+
+    <body>
+        <main class="container">
+            <header class="header">
+                <div class="brand">СВОЁ <span>ШЕФ</span></div>
+                <span class="demo">Демо-версия</span>
+            </header>
+
+            <section class="hero">
+                <h1>Найдём то, что вам понравится</h1>
+                <p>Изучайте меню и выбирайте блюда по своему вкусу</p>
+                <button class="primary-button" id="toggle-recommendations" type="button"
+                    aria-expanded="false" aria-controls="recommendations">
+                    <span id="toggle-label">Подобрать блюда</span>
+                    <svg class="toggle-chevron" width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </button>
+            </section>
+
+            <section class="preferences-section" id="recommendations" aria-hidden="true" inert>
+                <div class="preferences-inner">
+                    <h2>Подбор блюд</h2>
+                    <p>Укажите ваши предпочтения и ограничения.</p>
+
+                    <form id="recommendation-form">
+                        <label for="stage">Этап заказа</label>
+                        <select id="stage">
+                            <option value="before_order">До заказа</option>
+                            <option value="after_main">После основного блюда</option>
+                            <option value="before_dessert">Перед десертом</option>
+                        </select>
+
+                        <label for="budget">Общий бюджет, ₽</label>
+                        <input id="budget" type="number" min="0" step="1"
+                            placeholder="Не ограничен">
+
+                        <label for="allergy">Аллергия</label>
+                        <select id="allergy">
+                            <option value="">Нет выбранных</option>
+                            <option value="Milk">Молоко</option>
+                            <option value="Eggs">Яйца</option>
+                            <option value="Fish">Рыба</option>
+                            <option value="Peanuts">Арахис</option>
+                            <option value="Tree nuts">Орехи</option>
+                            <option value="Cereals containing gluten">Глютенсодержащие злаки
+                            </option>
+                        </select>
+
+                        <label for="restriction">Питание</label>
+                        <select id="restriction">
+                            <option value="">Без ограничений</option>
+                            <option value="vegan">Веганское</option>
+                            <option value="vegetarian">Вегетарианское</option>
+                        </select>
+
+                        <label for="preference">Предпочтения</label>
+                        <select id="preference">
+                            <option value="">Любые</option>
+                            <option value="fresh">Свежее</option>
+                            <option value="light">Лёгкое</option>
+                            <option value="hearty">Сытное</option>
+                            <option value="sweet">Сладкое</option>
+                            <option value="savory">Несладкое</option>
+                        </select>
+
+                        <label class="recommendation-choice">
+                            <input type="checkbox" id="recommendations-enabled" checked>
+                            Хочу получать рекомендации
+                        </label>
+
+                        <button class="submit-button" type="submit">Получить рекомендации</button>
+                    </form>
+
+                    <div id="recommendation-results" aria-live="polite"></div>
+                </div>
+            </section>
+
+            <section class="cart-section">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">ВАШ ЗАКАЗ</p>
+                        <h2>Корзина</h2>
+                    </div>
+                    <span class="counter" id="cart-count">0</span>
+                </div>
+
+                <div id="cart-items">
+                    <p>Вы пока ничего не выбрали.</p>
+                </div>
+
+                <div class="cart-summary">
+                    <span>Сумма заказа</span>
+                    <strong id="cart-total">0 ₽</strong>
+                </div>
+
+                <p id="cart-budget" aria-live="polite"></p>
+                <button id="go-to-dessert" class="submit-button" type="button">
+                    Перейти к десертам
+                </button>
+            </section>
+
+            <section class="menu-section">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">МЕНЮ</p>
+                        <h2>Блюда ресторана</h2>
+                    </div>
+                    <span class="counter">{{ dishes|length }}</span>
+                </div>
+                <div class="menu-grid">
+                    {% for dish in dishes %}
+                    <article class="dish-card">
+                        <div class="dish-category">{{ dish.category }}</div>
+                        <h3>{{ dish.name }}</h3>
+
+                        <div class="dish-footer">
+                            <span class="price">
+                                {{ "%.2f"|format(dish.price_kopeck / 100) }} ₽
+                            </span>
+                            <span class="availability">В наличии</span>
+                        </div>
+                        <button class="add-to-cart menu-add-button" type="button"
+                            data-dish-id="{{ dish.id }}">
+                            В корзину
+                        </button>
+                    </article>
+                    {% else %}
+                    <div class="empty-state">
+                        Доступных блюд нет.
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <footer class="footer">
+                «Своё Шеф»
+            </footer>
+        </main>
+        <script src="{{ url_for('static', filename='guest.js') }}" defer></script>
+    </body>
+
+</html>

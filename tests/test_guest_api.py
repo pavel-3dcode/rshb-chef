@@ -104,3 +104,23 @@ def test_unknown_age_excludes_alcohol(client):
 
     for item in response.get_json():
         assert not dishes[item["dish_id"]].is_alcohol
+
+def test_desserts_prioritized_before_dessert(client):
+    menu = load_menu(1)
+    categories = {dish.id: dish.category for dish in menu.dishes}
+
+    response = client.post(
+        "/api/recommendations",
+        json={
+            "stage": "before_dessert",
+            "budget_kopeck": 150000,
+            "cart_dish_ids": [9],
+        },
+    )
+
+    assert response.status_code == 200
+
+    results = response.get_json()
+
+    assert len(results) == 3
+    assert all(categories[item["dish_id"]] == "dessert" for item in results)

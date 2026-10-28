@@ -193,12 +193,28 @@ def recommend(
             )
         )
 
-    recommendations.sort(
-        key=lambda item: (
-            -item.score,
-            item.price_kopeck,
-            item.dish_id,
-        )
-    )
+        if guest.stage == "before_dessert":
+            dessert_ids = {
+                dish.id
+                for dish in candidates
+                if dish.category == "dessert"
+            }
+
+            recommendations.sort(
+                key=lambda item: (
+                    item.dish_id not in dessert_ids,
+                    -item.score,
+                    item.price_kopeck,
+                    item.dish_id,
+                )
+            )
+        else:
+            recommendations.sort(
+                key=lambda item: (
+                    -item.score,
+                    item.price_kopeck,
+                    item.dish_id,
+                )
+            )
 
     return recommendations[:3]
