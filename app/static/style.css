@@ -525,3 +525,21 @@ html {
 #go-to-dessert:hover {
     background: #237a56;
 }
+
+.rules-section {
+    background: white;
+    padding: 24px;
+    margin-bottom: 24px;
+    border-radius: 12px;
+}
+
+.rules-section form {
+    display: grid;
+    gap: 12px;
+    max-width: 450px;
+}
+
+.rules-section input[type="number"] {
+    padding: 10px;
+    max-width: 120px;
+}

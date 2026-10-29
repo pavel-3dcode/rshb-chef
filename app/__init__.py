@@ -1,5 +1,6 @@
+import os
+from app.admin import admin_bp
 from flask import Flask, jsonify, request, render_template
-
 from app.cart import validate_menu_dish
 from app.integration import load_menu
 from app.recommendations import recommend
@@ -8,6 +9,13 @@ from app.validation import build_guest_context, validate_guest_json
 
 def create_app():
     app = Flask(__name__)
+    app.config.update(
+        SECRET_KEY=os.environ.get("RSHB_SECRET_KEY"),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("RSHB_HTTPS") == "1",
+        PERMANENT_SESSION_LIFETIME=900,
+    )
 
     @app.route("/")
     def index():
@@ -152,5 +160,7 @@ def create_app():
             "price_kopeck": dish.price_kopeck,
             "category": dish.category
         })
+
+    app.register_blueprint(admin_bp)
 
     return app
