@@ -12,7 +12,6 @@
         <main class="container">
             <header class="header">
                 <div class="brand">СВОЁ <span>ШЕФ</span></div>
-                <span class="demo">Демо-версия</span>
             </header>
 
             <section class="hero">
@@ -79,7 +78,10 @@
                             <input type="checkbox" id="recommendations-enabled" checked>
                             Хочу получать рекомендации
                         </label>
-
+                        <label class="recommendation-choice">
+                            <input type="checkbox" id="age-confirmed">
+                            Мне есть 18
+                        </label>
                         <button class="submit-button" type="submit">Получить рекомендации</button>
                     </form>
 
@@ -117,11 +119,14 @@
                         <p class="eyebrow">МЕНЮ</p>
                         <h2>Блюда ресторана</h2>
                     </div>
-                    <span class="counter">{{ dishes|length }}</span>
+                    <span class="counter" id="menu-count">{{
+                        dishes|rejectattr('is_alcohol')|list|length }}</span>
                 </div>
                 <div class="menu-grid">
                     {% for dish in dishes %}
-                    <article class="dish-card">
+                    <article class="dish-card"
+                        data-is-alcohol="{{ '1' if dish.is_alcohol else '0' }}" {% if
+                        dish.is_alcohol %}hidden{% endif %}>
                         <div class="dish-category">{{ dish.category }}</div>
                         <h3>{{ dish.name }}</h3>
 

@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from collections import defaultdict
 from app.db import get_connection
 from app.recommendations import Dish, MenuSnapshot
 
@@ -23,25 +23,49 @@ def load_menu(restaurant_id: int, db_path=None) -> MenuSnapshot:
 
         dish_rows = connection.execute("SELECT * FROM dishes WHERE restaurant_id = ?", (restaurant_id,)).fetchall()
 
+        ingredients_by_dish = defaultdict(set)
+        for item in connection.execute(
+            """
+            SELECT di.dish_id, i.name
+            FROM dish_ingredients di
+            JOIN ingredients i ON i.id = di.ingredient_id
+            JOIN dishes d ON d.id = di.dish_id
+            WHERE d.restaurant_id = ?
+            """,
+            (restaurant_id,),
+        ):
+            ingredients_by_dish[item["dish_id"]].add(item["name"])
+
+        allergens_by_dish = defaultdict(set)
+        for item in connection.execute(
+            """
+            SELECT da.dish_id, a.name
+            FROM dish_allergens da
+            JOIN allergens a ON a.id = da.allergen_id
+            JOIN dishes d ON d.id = da.dish_id
+            WHERE d.restaurant_id = ?
+            """,
+            (restaurant_id,),
+        ):
+            allergens_by_dish[item["dish_id"]].add(item["name"])
+
+        tags_by_dish = defaultdict(set)
+        for item in connection.execute(
+            """
+            SELECT dt.dish_id, t.name
+            FROM dish_tags dt
+            JOIN tags t ON t.id = dt.tag_id
+            JOIN dishes d ON d.id = dt.dish_id
+            WHERE d.restaurant_id = ?
+            """,
+            (restaurant_id,),
+        ):
+            tags_by_dish[item["dish_id"]].add(item["name"])
+
         dishes = []
 
         for row in dish_rows:
             dish_id = row["id"]
-
-            ingredients = {
-                item["name"]
-                for item in connection.execute("SELECT i.name FROM  ingredients i JOIN dish_ingredients di ON di.ingredient_id = i.id WHERE di.dish_id = ?", (dish_id,))
-            }
-
-            allergens = {
-                item["name"]
-                for item in connection.execute("SELECT a.name FROM allergens a JOIN dish_allergens da ON da.allergen_id = a.id WHERE da.dish_id = ?", (dish_id,))
-            }
-
-            tags = {
-                item["name"]
-                for item in connection.execute("SELECT t.name FROM tags t JOIN dish_tags dt ON dt.tag_id = t.id WHERE dt.dish_id = ?", (dish_id,))
-            }
 
             dishes.append(
                 Dish(
@@ -50,13 +74,13 @@ def load_menu(restaurant_id: int, db_path=None) -> MenuSnapshot:
                     name = row["name"],
                     category = row["category"],
                     price_kopeck = row["price_kopeck"],
-                    available = row["available"],
-                    is_alcohol = row["is_alcohol"],
+                    available = bool(row["available"]),
+                    is_alcohol = bool(row["is_alcohol"]),
                     ingredients_verified = bool(row["ingredients_verified"]),
                     allergens_verified = bool(row["allergens_verified"]),
-                    ingredients = ingredients,
-                    allergens = allergens,
-                    tags = tags,
+                    ingredients = ingredients_by_dish[dish_id],
+                    allergens = allergens_by_dish[dish_id],
+                    tags = tags_by_dish[dish_id],
                 )
             )
 

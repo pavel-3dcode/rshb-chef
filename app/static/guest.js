@@ -21,12 +21,12 @@ function getGuestData() {
 
     return {
         stage: document.getElementById("stage").value,
-        budget_kopeck: budgetValue === "" ? null : Number(budgetValue) * 100,
+        budget_kopeck: budgetValue === "" ? null : Math.round(Number(budgetValue) * 100),
         cart_dish_ids: cart.map(dish => dish.dish_id),
         allergies: allergy ? [allergy] : [],
         restrictions: restriction ? [restriction] : [],
         preferences: preference ? [preference] : [],
-        age_confirmed: false,
+        age_confirmed: document.getElementById("age-confirmed").checked,
         recommendations_enabled: document.getElementById("recommendations-enabled").checked
     };
 }
@@ -97,11 +97,6 @@ toggleButton.addEventListener("click", () => {
 
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
-
-    const budgetValue = document.getElementById("budget").value;
-    const allergy = document.getElementById("allergy").value;
-    const restriction = document.getElementById("restriction").value;
-    const preference = document.getElementById("preference").value;
 
     const data = getGuestData();
 
@@ -185,9 +180,8 @@ form.addEventListener("submit", async (event) => {
                 }
             });
 
-            card.appendChild(addButton);
+            card.append(name, price, reasons, addButton);
 
-            card.append(name, price, reasons);
             results.appendChild(card);
         });
     } catch (error) {
@@ -270,4 +264,49 @@ dessertButton.addEventListener("click", () => {
     }
 
     form.requestSubmit();
+});
+
+const ageCheckbox = document.getElementById("age-confirmed");
+const menuCount = document.getElementById("menu-count");
+
+function updateAlcoholVisibility() {
+    const isAdult = ageCheckbox.checked;
+    const allCards = document.querySelectorAll(".menu-section .dish-card");
+    let visibleCount = 0;
+
+    allCards.forEach((card) => {
+        if (card.dataset.isAlcohol === "1") {
+            card.hidden = !isAdult;
+        }
+        if (!card.hidden) {
+            visibleCount += 1;
+        }
+    });
+
+    if (menuCount) {
+        menuCount.textContent = String(visibleCount);
+    }
+}
+
+ageCheckbox.addEventListener("change", () => {
+    if (ageCheckbox.checked) {
+        alert("Официант подтвердит ваш возраст перед заказом");
+    } else {
+        const alcoholIds = new Set(
+            Array.from(document.querySelectorAll('.menu-section .dish-card[data-is-alcohol="1"]'))
+                .map(card => Number(card.querySelector(".menu-add-button").dataset.dishId))
+        );
+        for (let i = cart.length - 1; i >= 0; i--) {
+            if (alcoholIds.has(cart[i].dish_id)) {
+                cart.splice(i, 1);
+            }
+        }
+        renderCart();
+    }
+
+    updateAlcoholVisibility();
+
+    if (results.children.length > 0) {
+        form.requestSubmit();
+    }
 });

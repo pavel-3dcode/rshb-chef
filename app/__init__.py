@@ -23,13 +23,14 @@ def create_app():
 
     @app.get("/menu")
     def guest_menu():
+        db_path = app.config.get("ADMIN_DB_PATH")
         try:
-            menu = load_menu(1)
+            menu = load_menu(1, db_path=db_path)
         except (ValueError, OSError):
             return "Menu not available", 503
 
         dishes = [
-            dish for dish in menu.dishes if dish.available and not dish.is_alcohol
+            dish for dish in menu.dishes if dish.available
         ]
 
         return render_template("menu.html", dishes=dishes)
@@ -43,8 +44,9 @@ def create_app():
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
 
+        db_path = app.config.get("ADMIN_DB_PATH")
         try:
-            menu = load_menu(1)
+            menu = load_menu(1, db_path=db_path)
         except (ValueError, OSError) as error:
             app.logger.error("Menu loading failed: %s", type(error).__name__)
             return jsonify({"error": "Menu temporarily unavailable"}), 503
@@ -84,8 +86,9 @@ def create_app():
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
 
+        db_path = app.config.get("ADMIN_DB_PATH")
         try:
-            menu = load_menu(1)
+            menu = load_menu(1, db_path=db_path)
         except (ValueError, OSError):
             return jsonify({"error": "Menu temporarily unavailable"}), 503
 
@@ -138,8 +141,9 @@ def create_app():
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
 
+        db_path = app.config.get("ADMIN_DB_PATH")
         try:
-            menu = load_menu(1)
+            menu = load_menu(1, db_path=db_path)
         except (ValueError, OSError):
             return jsonify({"error": "Menu temporarily unavailable"}), 503
 

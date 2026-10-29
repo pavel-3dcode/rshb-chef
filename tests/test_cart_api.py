@@ -4,7 +4,7 @@ from app import create_app
 @pytest.fixture
 def client():
     app = create_app()
-    app.config["TEST"] = True
+    app.config["TESTING"] = True
     return app.test_client()
 
 def test_cart_addition_success(client):
@@ -30,11 +30,11 @@ def test_cart_addition_success(client):
 @pytest.mark.parametrize("dish_id", [None, True, -1, 0, "15", 1.5])
 def test_invalid_dish_id(client, dish_id):
     response = client.post(
-        "/api/cart/vaidate",
-        json = {"stage": "before_order", "dish_id": 99999}
+        "/api/cart/validate",
+        json = {"stage": "before_order", "dish_id": dish_id}
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 400
 
 def test_already_in_cart(client):
     response = client.post(
