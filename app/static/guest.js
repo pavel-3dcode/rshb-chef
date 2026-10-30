@@ -88,6 +88,7 @@ async function addDishToCart(dishId, url) {
         return;
     }
 
+    clearRecommendations();
     const version = requestVersion;
     setCartBusy(true);
 
@@ -141,7 +142,7 @@ async function addDishToCart(dishId, url) {
         clearRecommendations();
     } catch (error) {
         if (version === requestVersion) {
-            results.textContent = error.message;
+            alert(error.message);
         }
     } finally {
         setCartBusy(false);
@@ -294,7 +295,8 @@ form.addEventListener("submit", async (event) => {
         });
     } catch (error) {
         if (currentVersion === requestVersion) {
-            results.textContent = error.message;
+            results.replaceChildren();
+            alert(error.message);
         }
     } finally {
         setCartBusy(false);
