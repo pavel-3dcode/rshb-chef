@@ -1,6 +1,11 @@
 
 const form = document.getElementById("recommendation-form");
 const results = document.getElementById("recommendation-results");
+let requestVersion = 0;
+function clearRecommendations() {
+    requestVersion++;
+    results.replaceChildren();
+}
 const submitButton = form.querySelector('button[type="submit"]');
 
 const toggleButton = document.getElementById("toggle-recommendations");
@@ -31,6 +36,9 @@ function getGuestData() {
     };
 }
 
+form.addEventListener("input", clearRecommendations);
+form.addEventListener("change", clearRecommendations);
+
 function renderCart() {
     cartItems.replaceChildren();
 
@@ -53,7 +61,7 @@ function renderCart() {
             const index = cart.findIndex(item => item.dish_id === dish.dish_id);
             if (index !== -1) cart.splice(index, 1);
             renderCart();
-            form.requestSubmit();
+            clearRecommendations();
         });
 
         row.append(name, remove);
@@ -99,6 +107,7 @@ form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const data = getGuestData();
+    const currentVersion = ++requestVersion;
 
     submitButton.disabled = true;
     results.textContent = "Подбираем блюда...";
@@ -111,6 +120,9 @@ form.addEventListener("submit", async (event) => {
         });
 
         const dishes = await response.json();
+        if (currentVersion !== requestVersion) {
+            return;
+        }
 
         if (!response.ok) {
             throw new Error(dishes.error || "Ошибка получения рекомендаций");
@@ -173,7 +185,7 @@ form.addEventListener("submit", async (event) => {
                     });
 
                     renderCart();
-                    form.requestSubmit();
+                    clearRecommendations();
                 } catch (error) {
                     results.textContent = error.message;
                     addButton.disabled = false;
@@ -185,7 +197,9 @@ form.addEventListener("submit", async (event) => {
             results.appendChild(card);
         });
     } catch (error) {
-        results.textContent = error.message;
+        if (currentVersion === requestVersion) {
+            results.textContent = error.message;
+        }
     } finally {
         submitButton.disabled = false;
     }
@@ -244,7 +258,7 @@ document.querySelectorAll(".menu-add-button").forEach((button) => {
             }
 
             renderCart();
-            form.requestSubmit();
+            clearRecommendations();
 
         } catch (error) {
             alert(error.message);
@@ -263,7 +277,7 @@ dessertButton.addEventListener("click", () => {
         toggleButton.click();
     }
 
-    form.requestSubmit();
+    clearRecommendations();
 });
 
 const ageCheckbox = document.getElementById("age-confirmed");
@@ -307,6 +321,6 @@ ageCheckbox.addEventListener("change", () => {
     updateAlcoholVisibility();
 
     if (results.children.length > 0) {
-        form.requestSubmit();
+        clearRecommendations();
     }
 });
