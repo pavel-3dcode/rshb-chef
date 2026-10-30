@@ -45,17 +45,37 @@
                         <input id="budget" type="number" min="0" step="1"
                             placeholder="Не ограничен">
 
-                        <label for="allergy">Аллергия</label>
-                        <select id="allergy">
-                            <option value="">Нет выбранных</option>
-                            <option value="Milk">Молоко</option>
-                            <option value="Eggs">Яйца</option>
-                            <option value="Fish">Рыба</option>
-                            <option value="Peanuts">Арахис</option>
-                            <option value="Tree nuts">Орехи</option>
-                            <option value="Cereals containing gluten">Глютенсодержащие злаки
-                            </option>
-                        </select>
+                        <details class="allergy-picker">
+                            <summary>Аллергии</summary>
+
+                            <div class="allergy-options" role="group" aria-label="Аллергии">
+                                <label>
+                                    <input type="checkbox" name="allergy" value="Milk">
+                                    Молоко
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="allergy" value="Eggs">
+                                    Яйца
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="allergy" value="Fish">
+                                    Рыба
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="allergy" value="Peanuts">
+                                    Арахис
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="allergy" value="Tree nuts">
+                                    Орехи
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="allergy"
+                                        value="Cereals containing gluten">
+                                    Глютенсодержащие злаки
+                                </label>
+                            </div>
+                        </details>
 
                         <label for="restriction">Питание</label>
                         <select id="restriction">

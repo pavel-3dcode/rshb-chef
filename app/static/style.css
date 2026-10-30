@@ -543,3 +543,35 @@ html {
     padding: 10px;
     max-width: 120px;
 }
+
+.allergy-picker {
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.allergy-picker summary {
+    padding: 14px;
+    cursor: pointer;
+}
+
+.allergy-options {
+    padding: 0 14px 10px;
+}
+
+#recommendation-form .allergy-options label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    margin: 0;
+    cursor: pointer;
+}
+
+#recommendation-form .allergy-options input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+    margin: 0;
+    flex-shrink: 0;
+}

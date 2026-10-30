@@ -180,6 +180,49 @@ def create_app():
             "category": dish.category
         })
 
+    @app.post("/api/cart/snapshot")
+    def get_cart_snapshot():
+        data = request.get_json(silent=True)
+
+        try:
+            validate_guest_json(data)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+
+        try:
+            menu = load_menu(
+                1,
+                db_path = app.config.get("ADMIN_DB_PATH"),
+            )
+        except (ValueError, OSError):
+            return jsonify({
+                "error": "Меню временно недоступно. Повторите позже."
+            }), 503
+
+        try:
+            guest = build_guest_context(data, menu, restaurant_id = 1)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+
+        dishes = {dish.id: dish for dish in menu.dishes}
+
+        items = [
+            {
+                "dish_id": dishes[dish_id].id,
+                "name": dishes[dish_id].name,
+                "price_kopeck": dishes[dish_id].price_kopeck,
+                "available": dishes[dish_id].available,
+            }
+            for dish_id in guest.cart_dish_ids
+        ]
+
+        return jsonify({
+            "cart": items,
+            "total_kopeck": sum(
+                item["price_kopeck"] for item in items
+            ),
+        })
+
     app.register_blueprint(admin_bp)
 
     return app

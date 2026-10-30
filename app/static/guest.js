@@ -21,7 +21,9 @@ const cartBudget = document.getElementById("cart-budget");
 
 function getGuestData() {
     const budgetValue = document.getElementById("budget").value;
-    const allergy = document.getElementById("allergy").value;
+    const allergies = Array.from(
+        document.querySelectorAll('input[name="allergy"]:checked')
+    ).map(input => input.value);
     const restriction = document.getElementById("restriction").value;
     const preference = document.getElementById("preference").value;
 
@@ -29,7 +31,7 @@ function getGuestData() {
         stage: document.getElementById("stage").value,
         budget_kopeck: budgetValue === "" ? null : Math.round(Number(budgetValue) * 100),
         cart_dish_ids: cart.map(dish => dish.dish_id),
-        allergies: allergy ? [allergy] : [],
+        allergies: allergies,
         restrictions: restriction ? [restriction] : [],
         preferences: preference ? [preference] : [],
         age_confirmed: document.getElementById("age-confirmed").checked,
@@ -50,6 +52,37 @@ function setCartBusy(value) {
     updateMenuButtons();
 }
 
+async function refreshCart(version) {
+    if (cart.length === 0) {
+        return true;
+    }
+
+    const response = await fetch("/api/cart/snapshot", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(getGuestData())
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (version !== requestVersion) {
+        return false;
+    }
+
+    if (!response.ok || data === null) {
+        throw new Error(
+            data?.error || "Не удалось обновить цены корзины."
+        );
+    }
+
+    cart.splice(0, cart.length, ...data.cart);
+    renderCart();
+
+    return true;
+}
+
 async function addDishToCart(dishId, url) {
     if (cartBusy || cart.some(dish => dish.dish_id === dishId)) {
         return;
@@ -59,6 +92,9 @@ async function addDishToCart(dishId, url) {
     setCartBusy(true);
 
     try {
+        if (!(await refreshCart(version))) {
+            return;
+        }
         const response = await fetch(url, {
             method: "POST",
             headers: {
@@ -77,9 +113,15 @@ async function addDishToCart(dishId, url) {
         }
 
         if (!response.ok || data === null) {
-            throw new Error(
-                data?.error || "Не удалось добавить блюдо. Повторите позже."
-            );
+            let message = data?.error
+                || "Не удалось добавить блюдо. Повторите позже.";
+
+            if (data?.error === "Allergen information not verified") {
+                message = "Нет подтверждённых сведений об аллергенах. "
+                    + "Уточните состав у персонала.";
+            }
+
+            throw new Error(message);
         }
 
         cart.push({
@@ -126,7 +168,9 @@ function renderCart() {
         row.className = "cart-item";
 
         const name = document.createElement("span");
-        name.textContent = `${dish.name} — ${(dish.price_kopeck / 100).toFixed(2)} ₽`;
+        name.textContent =
+            `${dish.name} — ${(dish.price_kopeck / 100).toFixed(2)} ₽`
+            + (dish.available === false ? " · Нет в наличии" : "");
 
         const remove = document.createElement("button");
         remove.type = "button";
@@ -187,10 +231,13 @@ form.addEventListener("submit", async (event) => {
     const data = getGuestData();
     const currentVersion = ++requestVersion;
 
-    submitButton.disabled = true;
+    setCartBusy(true);
     results.textContent = "Подбираем блюда...";
 
     try {
+        if (!(await refreshCart(currentVersion))) {
+            return;
+        }
         const response = await fetch("/api/recommendations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -250,7 +297,7 @@ form.addEventListener("submit", async (event) => {
             results.textContent = error.message;
         }
     } finally {
-        submitButton.disabled = cartBusy;
+        setCartBusy(false);
     }
 });
 
