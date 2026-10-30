@@ -86,9 +86,7 @@
                     <input id="pairing-weight" type="number" name="pairing_weight"
                         value="{{ rules.pairing_weight }}" min="0" max="5" required>
 
-                    <label for="category-weight">Вес этапа заказа (0–5)</label>
-                    <input id="category-weight" type="number" name="category_weight"
-                        value="{{ rules.category_weight }}" min="0" max="5" required>
+                    <input type="hidden" name="category_weight" value="{{ rules.category_weight }}">
 
                     <label>
                         <input type="checkbox" name="enabled" value="1" {% if rules.enabled

@@ -18,6 +18,17 @@ from werkzeug.security import check_password_hash
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
+def valid_csrf(submitted, expected):
+    return (
+        isinstance(submitted, str)
+        and isinstance(expected, str)
+        and 1 <= len(submitted) <= 128
+        and 1 <= len(expected) <= 128
+        and submitted.isascii()
+        and expected.isascii()
+        and secrets.compare_digest(submitted, expected)
+    )
+
 
 @admin_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -38,16 +49,20 @@ def login():
     submitted_token = request.form.get("csrf_token", "")
     expected_token = session.get("csrf_token", "")
 
-    if not expected_token or not secrets.compare_digest(
-        submitted_token, expected_token
-    ):
+    if not valid_csrf(submitted_token, expected_token):
         abort(400)
 
     submitted_username = request.form.get("username", "")
     submitted_password = request.form.get("password", "")
 
+    if len(submitted_username) > 100 or len(submitted_password) > 1024:
+        abort(400)
+
     if (
-        secrets.compare_digest(submitted_username, username)
+        secrets.compare_digest(
+            submitted_username.encode("utf-8"),
+            username.encode("utf-8"),
+        )
         and check_password_hash(password_hash, submitted_password)
     ):
         session.clear()
@@ -58,7 +73,6 @@ def login():
 
     abort(401)
 
-
 @admin_bp.get("/")
 def dashboard():
     if not session.get("admin_authenticated"):
@@ -67,7 +81,7 @@ def dashboard():
     from app.integration import load_menu
 
     try:
-        menu = load_menu(1)
+        menu = load_menu(1, db_path = current_app.config.get("ADMIN_DB_PATH"))
 
     except (ValueError, OSError):
         abort(503)
@@ -87,9 +101,7 @@ def logout():
     submitted_token = request.form.get("csrf_token", "")
     expected_token = session.get("csrf_token", "")
 
-    if not expected_token or not secrets.compare_digest(
-        submitted_token, expected_token
-    ):
+    if not valid_csrf(submitted_token, expected_token):
         abort(400)
 
     session.clear()
@@ -103,7 +115,7 @@ def change_dish_availability(dish_id):
     submitted_token = request.form.get("csrf_token", "")
     expected_token = session.get("csrf_token", "")
 
-    if not expected_token or not secrets.compare_digest(submitted_token, expected_token):
+    if not valid_csrf(submitted_token, expected_token):
         abort(400)
 
     value = request.form.get("available")
@@ -132,14 +144,16 @@ def change_dish_price(dish_id):
     submitted_token = request.form.get("csrf_token", "")
     expected_token = session.get("csrf_token", "")
 
-    if not expected_token or not secrets.compare_digest(
-        submitted_token, expected_token
-    ):
+    if not valid_csrf(submitted_token, expected_token):
         abort(400)
 
     price_text = request.form.get("price_kopeck", "")
 
-    if not price_text.isascii() or not price_text.isdecimal():
+    if (
+        not 1 <= len(price_text) <= 9
+        or not price_text.isascii()
+        or not price_text.isdecimal()
+    ):
         abort(400)
 
     price_kopeck = int(price_text)
@@ -172,9 +186,7 @@ def change_restaurant_rules():
     submitted_token = request.form.get("csrf_token", "")
     expected_token = session.get("csrf_token", "")
 
-    if not expected_token or not secrets.compare_digest(
-        submitted_token, expected_token
-    ):
+    if not valid_csrf(submitted_token, expected_token):
         abort(400)
 
     weight_names = (

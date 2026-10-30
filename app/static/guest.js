@@ -2,6 +2,7 @@
 const form = document.getElementById("recommendation-form");
 const results = document.getElementById("recommendation-results");
 let requestVersion = 0;
+let cartBusy = false;
 function clearRecommendations() {
     requestVersion++;
     results.replaceChildren();
@@ -36,8 +37,82 @@ function getGuestData() {
     };
 }
 
-form.addEventListener("input", clearRecommendations);
-form.addEventListener("change", clearRecommendations);
+function setCartBusy(value) {
+    cartBusy = value;
+    submitButton.disabled = value;
+
+    document.querySelectorAll(
+        ".menu-add-button, #recommendation-results .add-to-cart"
+    ).forEach(button => {
+        button.disabled = value;
+    });
+
+    updateMenuButtons();
+}
+
+async function addDishToCart(dishId, url) {
+    if (cartBusy || cart.some(dish => dish.dish_id === dishId)) {
+        return;
+    }
+
+    const version = requestVersion;
+    setCartBusy(true);
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                ...getGuestData(),
+                dish_id: dishId
+            })
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (version !== requestVersion) {
+            return;
+        }
+
+        if (!response.ok || data === null) {
+            throw new Error(
+                data?.error || "Не удалось добавить блюдо. Повторите позже."
+            );
+        }
+
+        cart.push({
+            dish_id: data.dish_id,
+            name: data.name,
+            price_kopeck: data.price_kopeck
+        });
+
+        if (
+            data.category === "main" &&
+            document.getElementById("stage").value === "before_order"
+        ) {
+            document.getElementById("stage").value = "after_main";
+        }
+
+        renderCart();
+        clearRecommendations();
+    } catch (error) {
+        if (version === requestVersion) {
+            results.textContent = error.message;
+        }
+    } finally {
+        setCartBusy(false);
+    }
+}
+
+function handleSettingsChange() {
+    clearRecommendations();
+    renderCart();
+}
+
+form.addEventListener("input", handleSettingsChange);
+form.addEventListener("change", handleSettingsChange);
 
 function renderCart() {
     cartItems.replaceChildren();
@@ -106,6 +181,9 @@ toggleButton.addEventListener("click", () => {
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
+    if (cartBusy) {
+        return;
+    }
     const data = getGuestData();
     const currentVersion = ++requestVersion;
 
@@ -159,37 +237,8 @@ form.addEventListener("submit", async (event) => {
             addButton.className = "add-to-cart";
             addButton.textContent = "Добавить в корзину";
 
-            addButton.addEventListener("click", async () => {
-                addButton.disabled = true;
-
-                try {
-                    const response = await fetch("/api/cart/validate", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            ...getGuestData(),
-                            dish_id: dish.dish_id
-                        })
-                    });
-
-                    const validated = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(validated.error || "Не удалось добавить блюдо");
-                    }
-
-                    cart.push({
-                        dish_id: validated.dish_id,
-                        name: validated.name,
-                        price_kopeck: validated.price_kopeck
-                    });
-
-                    renderCart();
-                    clearRecommendations();
-                } catch (error) {
-                    results.textContent = error.message;
-                    addButton.disabled = false;
-                }
+            addButton.addEventListener("click", () => {
+                addDishToCart(dish.dish_id, "/api/cart/validate");
             });
 
             card.append(name, price, reasons, addButton);
@@ -201,7 +250,7 @@ form.addEventListener("submit", async (event) => {
             results.textContent = error.message;
         }
     } finally {
-        submitButton.disabled = false;
+        submitButton.disabled = cartBusy;
     }
 });
 
@@ -212,7 +261,7 @@ function updateMenuButtons() {
 
         button.classList.toggle("is-added", added);
         button.textContent = added ? "Добавлено ✓" : "В корзину";
-        button.disabled = added;
+        button.disabled = added || cartBusy;
     });
 }
 
@@ -220,51 +269,11 @@ renderCart();
 
 
 document.querySelectorAll(".menu-add-button").forEach((button) => {
-    button.addEventListener("click", async () => {
-        const dishId = Number(button.dataset.dishId);
-
-        button.disabled = true;
-        button.textContent = "Проверяем...";
-
-        try {
-            const response = await fetch("/api/menu/add/validate", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    ...getGuestData(),
-                    dish_id: dishId
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Не удалось добавить блюдо");
-            }
-
-            cart.push({
-                dish_id: data.dish_id,
-                name: data.name,
-                price_kopeck: data.price_kopeck
-            });
-
-            if (
-                data.category === "main" &&
-                document.getElementById("stage").value === "before_order"
-            ) {
-                document.getElementById("stage").value = "after_main";
-            }
-
-            renderCart();
-            clearRecommendations();
-
-        } catch (error) {
-            alert(error.message);
-        } finally {
-            updateMenuButtons();
-        }
+    button.addEventListener("click", () => {
+        addDishToCart(
+            Number(button.dataset.dishId),
+            "/api/menu/add/validate"
+        );
     });
 });
 

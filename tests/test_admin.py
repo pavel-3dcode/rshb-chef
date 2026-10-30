@@ -387,3 +387,131 @@ def test_disabled_recommendations_return_empty(admin_client):
     )
 
     assert recommend(menu, guest) == []
+
+def test_dashboard_uses_configured_database(admin_client, tmp_path):
+    source = (
+        Path(__file__).resolve().parent.parent
+        / "instance"
+        / "rshb_chef.db"
+    )
+    test_db = tmp_path / "dashboard.db"
+    shutil.copy2(source, test_db)
+
+    marker = "Configured database marker"
+
+    connection = sqlite3.connect(test_db)
+    try:
+        connection.execute(
+            "UPDATE dishes SET name = ? WHERE id = ?",
+            (marker, 1),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    admin_client.application.config["ADMIN_DB_PATH"] = test_db
+
+    token = get_csrf_token(admin_client)
+    response = admin_client.post(
+        "/admin/login",
+        data={
+            "username": "admin",
+            "password": "test-password",
+            "csrf_token": token,
+        },
+    )
+
+    assert response.status_code == 302
+
+    response = admin_client.get("/admin/")
+
+    assert response.status_code == 200
+    assert marker in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize("path", [
+    "/admin/login",
+    "/admin/logout",
+    "/admin/dishes/1/availability",
+    "/admin/dishes/1/price",
+    "/admin/rules",
+])
+def test_admin_rejects_unicode_csrf(admin_client, path):
+    token = get_csrf_token(admin_client)
+
+    response = admin_client.post(
+        "/admin/login",
+        data={
+            "username": "admin",
+            "password": "test-password",
+            "csrf_token": token,
+        },
+    )
+    assert response.status_code == 302
+
+    response = admin_client.post(
+        path,
+        data={"csrf_token": "я"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_admin_rejects_unknown_unicode_username(admin_client):
+    token = get_csrf_token(admin_client)
+
+    response = admin_client.post(
+        "/admin/login",
+        data={
+            "username": "Павел",
+            "password": "test-password",
+            "csrf_token": token,
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_admin_accepts_configured_unicode_username(
+    admin_client, monkeypatch
+):
+    monkeypatch.setenv("RSHB_ADMIN_USER", "Павел")
+    token = get_csrf_token(admin_client)
+
+    response = admin_client.post(
+        "/admin/login",
+        data={
+            "username": "Павел",
+            "password": "test-password",
+            "csrf_token": token,
+        },
+    )
+
+    assert response.status_code == 302
+
+
+def test_admin_rejects_excessively_long_price(admin_client):
+    token = get_csrf_token(admin_client)
+
+    response = admin_client.post(
+        "/admin/login",
+        data={
+            "username": "admin",
+            "password": "test-password",
+            "csrf_token": token,
+        },
+    )
+    assert response.status_code == 302
+
+    with admin_client.session_transaction() as admin_session:
+        token = admin_session["csrf_token"]
+
+    response = admin_client.post(
+        "/admin/dishes/1/price",
+        data={
+            "csrf_token": token,
+            "price_kopeck": "9" * 5000,
+        },
+    )
+
+    assert response.status_code == 400

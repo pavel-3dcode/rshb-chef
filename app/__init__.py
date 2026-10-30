@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from app.admin import admin_bp
 from flask import Flask, jsonify, request, render_template
 from app.cart import validate_menu_dish
@@ -16,6 +17,20 @@ def create_app():
         SESSION_COOKIE_SECURE=os.environ.get("RSHB_HTTPS") == "1",
         PERMANENT_SESSION_LIFETIME=900,
     )
+
+    @app.errorhandler(sqlite3.Error)
+    def handle_database_error(error):
+        app.logger.error(
+            "Database operation failed: %s",
+            type(error).__name__,
+        )
+
+        message = "Меню временно недоступно. Повторите позже."
+
+        if request.path.startswith("/api/"):
+            return jsonify({"error": message}), 503
+
+        return message, 503
 
     @app.route("/")
     def index():
